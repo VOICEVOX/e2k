@@ -4,38 +4,17 @@ version = "0.3.0"
 description = "A tool for automatic English to Katakana conversion"
 readme = "README.md"
 authors = [{ name = "Patchethium", email = "asguftuikh@gmail.com" }]
-requires-python = ">=3.10"
-dependencies = ["numpy>=1.0,<3.0"]
-
-[build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-license-files = []
-
-[dependency-groups]
-dev = [
-    "black>=25.1.0",
-    "build>=1.2.2.post1",
-    "g2p-en>=2.1.0",
-    "safetensors>=0.5.2",
-    "tensorboard>=2.18.0",
-    "torch>=2.5.0",
-    "torcheval>=0.0.7",
-    "tqdm>=4.67.1",
+requires-python = ">=3.11"
+dependencies = [
+  "g2p-en>=2.1.0",
+  "numpy>=1.0,<3.0",
+  "requests>=2.32.3",
+  "ruff>=0.10.0",
+  "safetensors>=0.5.2",
+  "tensorboard>=2.18.0",
+  "tqdm>=4.67.1",
+  "zipfile-deflate64>=0.2.0",
+  "torch==2.5.0",
+  "torcheval>=0.0.7",
+  "pyyaml>=6.0.2",
 ]
-
-[tool.uv.sources]
-torch = [{ index = "pytorch-cpu" }]
-
-[[tool.uv.index]]
-name = "pytorch-cpu"
-url = "https://download.pytorch.org/whl/cpu"
-explicit = true
-
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools.package-data]
-e2k = ["models/*.npz"]
