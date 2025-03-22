@@ -1,3 +1,5 @@
+import { Mutex } from "@core/asyncutil";
+
 export const bisectMax = async (
   min: number,
   max: number,
@@ -54,7 +56,24 @@ export const filterPronunciations = (
 };
 
 export const sleep = (ms: number) =>
-  new Promise((resolve) => setTimeout(resolve, ms));
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+export class Throttle {
+  private mutex: Mutex;
+  private throttleMs: number;
+
+  constructor(throttleMs: number) {
+    this.mutex = new Mutex();
+    this.throttleMs = throttleMs;
+  }
+
+  async throttle() {
+    // TODO: Node.jsがusing文に対応したらusingに置き換える
+    const lock = await this.mutex.acquire();
+    await sleep(this.throttleMs);
+    lock[Symbol.dispose]();
+  }
+}
 
 export class ExhaustiveError extends Error {
   constructor(value: never, message?: string) {

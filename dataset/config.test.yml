@@ -10,13 +10,12 @@ inference:
   provider: dummy
   concurrency: 10
   batch:
-    type: bisect
-    maxBatchSize: 1000
-    ratio: 0.95
+    type: fixed
+    batchSize: 900
   rateLimit:
     maxRetries: 10
     waitMs: 60000
-    throttleMs: 1000
+    throttleMs: 10
   gemini:
     apiKey: ""
     modelName: "gemini-2.0-flash"
