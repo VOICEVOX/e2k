@@ -12,6 +12,11 @@
 - `dataset/`：データセットを生成するためのコード。
 - `tools/`：その他、CI用のスクリプトなど。
 
+## Hugging Face
+
+Hugging Face にて、データセットと学習済みモデルを公開しています。\
+<https://huggingface.co/VOICEVOX/e2k>
+
 ## ライセンス
 
 このリポジトリのコードはMITライセンスのもとで公開されています。
