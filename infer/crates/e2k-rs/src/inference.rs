@@ -6,15 +6,16 @@ use std::{collections::HashMap, hash::Hash};
 /// デコードに使うアルゴリズム。
 ///
 /// [StrategyTopK] 、 [StrategyTopP] も参照。
-#[derive(Debug)]
+#[derive(Clone, Debug, Default)]
 pub enum Strategy {
+    #[default]
     Greedy,
     TopK(StrategyTopK),
     TopP(StrategyTopP),
 }
 
 /// Top-Kアルゴリズムのパラメータ。
-#[derive(Debug, Educe)]
+#[derive(Clone, Debug, Educe)]
 #[educe(Default)]
 pub struct StrategyTopK {
     #[educe(Default(expression = 3))]
@@ -22,7 +23,7 @@ pub struct StrategyTopK {
 }
 
 /// Top-Pアルゴリズムのパラメータ。
-#[derive(Debug, Educe)]
+#[derive(Clone, Debug, Educe)]
 #[educe(Default)]
 pub struct StrategyTopP {
     #[educe(Default(expression = 0.9))]
@@ -265,24 +266,14 @@ impl S2s {
     }
 }
 
-/// [C2k] の基底となる構造体。
-/// 基本的には[C2k]を使ってください。
-pub struct BaseE2k<I: Hash + Eq, O: Clone> {
+struct BaseE2k<I: Hash + Eq, O: Clone> {
     s2s: S2s,
     in_table: HashMap<I, usize>,
     out_table: HashMap<usize, O>,
 }
 
 impl<I: Hash + Eq, O: Clone> BaseE2k<I, O> {
-    /// 新しいインスタンスを生成する。
-    ///
-    /// # Arguments
-    ///
-    /// - `tensors`: モデルの重み。必要な値についてはS2sの実装を参照してください。
-    /// - `in_table`: 入力のテーブル。キーが入力、値がモデルの入力に変換されるインデックス。
-    /// - `out_table`: 出力のテーブル。キーがモデルの出力に変換されるインデックス、値が出力。
-    /// - `max_length`: 読みの最大長。
-    pub fn new(
+    fn new(
         tensors: safetensors::SafeTensors,
         in_table: HashMap<I, usize>,
         out_table: HashMap<usize, O>,
@@ -319,6 +310,10 @@ impl<I: Hash + Eq, O: Clone> BaseE2k<I, O> {
     fn set_decode_strategy(&mut self, strategy: Strategy) {
         self.s2s.strategy = strategy;
     }
+
+    fn set_max_length(&mut self, max_length: usize) {
+        self.s2s.max_length = max_length;
+    }
 }
 
 /// 英単語 -> カタカナの変換器。
@@ -332,13 +327,20 @@ impl std::fmt::Debug for C2k {
     }
 }
 
+impl Default for C2k {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl C2k {
     /// 新しいインスタンスを生成する。
     ///
-    /// # Arguments
+    /// # See also
     ///
-    /// - `max_length`: 読みの最大長。
-    pub fn new(max_length: usize) -> Self {
+    /// [with_length]
+    /// [with_strategy]
+    pub fn new() -> Self {
         static MODEL: std::sync::LazyLock<Vec<u8>> = std::sync::LazyLock::new(|| {
             cfg_elif::expr::cfg!(if (docsrs) {
                 Vec::new()
@@ -359,7 +361,7 @@ impl C2k {
             })
         });
         let weights = safetensors::SafeTensors::deserialize(&MODEL).expect("Model is corrupted");
-        let inner = BaseE2k::new(
+        let mut inner = BaseE2k::new(
             weights,
             constants::ASCII_ENTRIES
                 .iter()
@@ -378,9 +380,22 @@ impl C2k {
                     )
                 })
                 .collect(),
-            max_length,
+            32,
         );
+        inner.set_decode_strategy(Strategy::default());
         Self { inner }
+    }
+
+    /// 読みの最大長を変更する。
+    pub fn with_max_length(mut self, max_length: usize) -> Self {
+        self.inner.set_max_length(max_length);
+        self
+    }
+
+    /// アルゴリズムを設定する。
+    pub fn with_strategy(mut self, strategy: Strategy) -> Self {
+        self.inner.set_decode_strategy(strategy);
+        self
     }
 
     /// 推論を行う。

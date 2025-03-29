@@ -33,27 +33,31 @@ enum StrategyArg {
 fn main() {
     let args = Args::parse();
 
-    let mut c2k = e2k::C2k::new(args.max_length);
-    match args.strategy {
+    let strategy = match args.strategy {
         StrategyArg::Greedy => {
-            c2k.set_decode_strategy(e2k::Strategy::Greedy);
             println!("アルゴリズム：Greedy");
+            e2k::Strategy::Greedy
         }
         StrategyArg::TopK => {
-            c2k.set_decode_strategy(e2k::Strategy::TopK(e2k::StrategyTopK { k: args.top_k }));
             println!("アルゴリズム：Top-K, K={}", args.top_k);
+            e2k::Strategy::TopK(e2k::StrategyTopK { k: args.top_k })
         }
         StrategyArg::TopP => {
-            c2k.set_decode_strategy(e2k::Strategy::TopP(e2k::StrategyTopP {
-                top_p: args.top_p,
-                temperature: args.temperature,
-            }));
             println!(
                 "アルゴリズム：Top-P, P={}, T={}",
                 args.top_p, args.temperature
             );
+            e2k::Strategy::TopP(e2k::StrategyTopP {
+                top_p: args.top_p,
+                temperature: args.temperature,
+            })
         }
-    }
+    };
+
+    let c2k = e2k::C2k::new()
+        .with_strategy(strategy)
+        .with_max_length(args.max_length);
+
     println!("Ctrl-C で終了します。");
     loop {
         let line = dialoguer::Input::<String>::new()

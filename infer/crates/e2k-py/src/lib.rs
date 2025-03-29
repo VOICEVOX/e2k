@@ -2,9 +2,15 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
 fn extract_strategy(strategy: &str, kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<e2k::Strategy> {
-    Ok(match strategy {
-        "greedy" => e2k::Strategy::Greedy,
+    return Ok(match strategy {
+        "greedy" => {
+            error_on_extra_args(kwargs, &[])?;
+
+            e2k::Strategy::Greedy
+        }
         "top_k" => {
+            error_on_extra_args(kwargs, &["k"])?;
+
             let k = kwargs
                 .map(|kwargs| kwargs.get_item("k"))
                 .transpose()?
@@ -20,6 +26,8 @@ fn extract_strategy(strategy: &str, kwargs: Option<&Bound<'_, PyDict>>) -> PyRes
             e2k::Strategy::TopK(strategy)
         }
         "top_p" => {
+            error_on_extra_args(kwargs, &["p", "t"])?;
+
             let top_p = kwargs
                 .map(|kwargs| kwargs.get_item("p"))
                 .transpose()?
@@ -49,7 +57,31 @@ fn extract_strategy(strategy: &str, kwargs: Option<&Bound<'_, PyDict>>) -> PyRes
                 "strategy must be one of 'greedy', 'top_k', 'top_p'",
             ));
         }
-    })
+    });
+
+    fn error_on_extra_args(kwargs: Option<&Bound<'_, PyDict>>, expected: &[&str]) -> PyResult<()> {
+        if let Some(kwargs) = kwargs {
+            let keys = kwargs.iter().map(|item| item.0).collect::<Vec<_>>();
+            let keys = keys
+                .iter()
+                .map(|key| key.extract::<String>())
+                .collect::<Result<Vec<_>, _>>()?;
+
+            let extra_keys = keys
+                .iter()
+                .map(|key| key.as_str())
+                .filter(|&key| !expected.contains(&key))
+                .collect::<Vec<_>>();
+
+            if !extra_keys.is_empty() {
+                return Err(pyo3::exceptions::PyTypeError::new_err(format!(
+                    "unexpected keyword argument(s): {}",
+                    extra_keys.join(", ")
+                )));
+            }
+        }
+        Ok(())
+    }
 }
 
 #[pyclass(frozen)]
@@ -60,28 +92,20 @@ struct C2k {
 #[pymethods]
 impl C2k {
     #[new]
-    #[pyo3(signature = (max_length = 32))]
-    fn new(max_length: usize) -> Self {
-        Self {
-            inner: std::sync::RwLock::new(e2k::C2k::new(max_length)),
-        }
-    }
-
-    #[pyo3(signature = (strategy, **kwargs))]
-    fn set_decode_strategy(
-        &self,
+    #[pyo3(signature = (max_length = 32, strategy = "greedy", **kwargs))]
+    fn new(
+        max_length: usize,
         strategy: &str,
         kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyResult<()> {
+    ) -> PyResult<Self> {
         let strategy = extract_strategy(strategy, kwargs)?;
-
-        {
-            let mut inner = self.inner.write().unwrap();
-
-            inner.set_decode_strategy(strategy);
-        };
-
-        Ok(())
+        Ok(Self {
+            inner: std::sync::RwLock::new(
+                e2k::C2k::new()
+                    .with_max_length(max_length)
+                    .with_strategy(strategy),
+            ),
+        })
     }
 
     fn __call__(&self, src: &str) -> String {

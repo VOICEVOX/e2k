@@ -4,6 +4,4 @@ edition = "2024"
 
 [workspace]
 members = ["crates/e2k-rs", "crates/e2k-py"]
-resolver = "2"
-
-[workspace.dependencies]
+resolver = "3"
